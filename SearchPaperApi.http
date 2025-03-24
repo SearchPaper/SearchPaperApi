@@ -1,0 +1,6 @@
+@SearchPaperApi_HostAddress = http://localhost:5003
+
+GET {{SearchPaperApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
