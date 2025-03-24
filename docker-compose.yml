@@ -1,0 +1,26 @@
+# Copyright Broadcom, Inc. All Rights Reserved.
+# SPDX-License-Identifier: APACHE-2.0
+
+services:
+  minio:
+    image: docker.io/bitnami/minio:latest
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - 'minio_data:/bitnami/minio/data'
+  opensearch:
+    image: docker.io/bitnami/opensearch:latest
+    ports:
+      - '9200:9200'
+      - '9300:9300'
+    volumes:
+      - 'opensearch_data:/bitnami/opensearch/data'
+    environment:
+      - OPENSEARCH_PLUGINS=ingest-attachment
+
+volumes:
+  minio_data:
+    driver: local
+  opensearch_data:
+    driver: local
