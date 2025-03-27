@@ -1,4 +1,5 @@
 using Amazon.S3;
+using OpenSearch.Client;
 
 namespace SearchPaperApi;
 
@@ -31,6 +32,18 @@ public class Program
             var s3Client = new AmazonS3Client(accessKey, secretKey, config);
 
             return s3Client;
+        });
+
+        builder.Services.AddSingleton(sp =>
+        {
+            var nodeAddress = builder.Configuration.GetValue<string>("OpenSearch:NodeAddress");
+
+            if (nodeAddress == null)
+            {
+                throw new NullReferenceException("Search Engine Address is required");
+            }
+
+            return new OpenSearchClient(new Uri(nodeAddress));
         });
 
         var app = builder.Build();
