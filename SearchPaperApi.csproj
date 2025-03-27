@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.2" />
+    <PackageReference Include="AWSSDK.S3" Version="3.7.415.26" />
   </ItemGroup>
 
 </Project>
