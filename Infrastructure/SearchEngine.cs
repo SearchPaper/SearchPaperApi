@@ -6,6 +6,8 @@ public class SearchEngine
 {
     public const string DefaultAttachmentPipeline = "AttachmentPipeline";
 
+    public const string DocumentsIndex = "documents";
+
     public static async Task Initialize(IServiceProvider serviceProvider)
     {
         var searchClient = serviceProvider.GetRequiredService<IOpenSearchClient>();
@@ -21,11 +23,7 @@ public class SearchEngine
                 Description = "The default document ingestion pipeline",
                 Processors = new IProcessor[]
                 {
-                    new AttachmentProcessor
-                    {
-                        Field = new Field("contentBase64"),
-                        TargetField = new Field("content"),
-                    },
+                    new AttachmentProcessor { Field = new Field("contentBase64") },
                     new RemoveProcessor { Field = new Field("contentBase64") },
                 },
             };

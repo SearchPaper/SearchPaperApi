@@ -1,5 +1,6 @@
 using Amazon.S3;
 using OpenSearch.Client;
+using SearchPaperApi.Extensions;
 using SearchPaperApi.Infrastructure.S3Storage;
 using SearchPaperApi.Infrastructure.SearchEngine;
 
@@ -12,8 +13,6 @@ public class Program
         var builder = WebApplication.CreateBuilder(args);
 
         // var allowedHosts = builder.Configuration.GetValue<string>("PizzaFlavor");
-
-
         // Add services to the container.
 
         builder.Services.AddControllers();
@@ -47,6 +46,8 @@ public class Program
 
             return new OpenSearchClient(new Uri(nodeAddress));
         });
+
+        builder.Services.AddFeatureServices();
 
         var app = builder.Build();
 
