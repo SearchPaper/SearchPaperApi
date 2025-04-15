@@ -94,27 +94,6 @@ public class DocumentsService
         return documents;
     }
 
-    public async Task<IEnumerable<Document>> SearchAsync()
-    {
-        var searchRequest = new SearchRequest(SearchEngine.DocumentsIndex)
-        {
-            Source = new SourceFilter { Excludes = new Field[] { new Field("attachment") } },
-        };
-
-        var searchResponse = await _openSearchClient.SearchAsync<Document>(searchRequest);
-
-        var documents = searchResponse.Hits.Select(d => new Document(
-            d.Id,
-            d.Source.TrustedFileName,
-            d.Source.UntrustedFileName,
-            null,
-            null,
-            d.Source.UploadDateTime
-        ));
-
-        return documents;
-    }
-
     public async Task<Document?> GetDocumentAsync(string id)
     {
         var getRequest = new GetRequest<Document>(SearchEngine.DocumentsIndex, id)
