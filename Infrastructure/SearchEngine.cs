@@ -1,6 +1,6 @@
 using OpenSearch.Client;
 
-namespace SearchPaperApi.Infrastructure.SearchEngine;
+namespace SearchPaperApi.Infrastructure;
 
 public class SearchEngine
 {

@@ -4,7 +4,7 @@ using Amazon.S3.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
 using OpenSearch.Client;
-using SearchPaperApi.Infrastructure.S3Storage;
+using SearchPaperApi.Infrastructure;
 
 namespace SearchPaperApi.Features.Documents;
 

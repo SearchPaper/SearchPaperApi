@@ -1,8 +1,7 @@
 using Amazon.S3;
 using OpenSearch.Client;
 using SearchPaperApi.Extensions;
-using SearchPaperApi.Infrastructure.S3Storage;
-using SearchPaperApi.Infrastructure.SearchEngine;
+using SearchPaperApi.Infrastructure;
 
 namespace SearchPaperApi;
 

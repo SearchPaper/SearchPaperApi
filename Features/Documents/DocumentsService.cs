@@ -2,8 +2,7 @@ using System.IO.Compression;
 using Amazon.S3;
 using Amazon.S3.Model;
 using OpenSearch.Client;
-using SearchPaperApi.Infrastructure.S3Storage;
-using SearchPaperApi.Infrastructure.SearchEngine;
+using SearchPaperApi.Infrastructure;
 
 namespace SearchPaperApi.Features.Documents;
 

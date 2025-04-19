@@ -2,7 +2,7 @@ using Amazon.S3;
 using Amazon.S3.Util;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace SearchPaperApi.Infrastructure.S3Storage;
+namespace SearchPaperApi.Infrastructure;
 
 public class S3Storage
 {
