@@ -69,7 +69,7 @@ public class DocumentsService
         return countResponse.Count;
     }
 
-    public async Task<IEnumerable<Document>> SearchAsync(int size, int offset, string term)
+    public async Task<IEnumerable<Document>> ListAsync(int size, int offset, string term)
     {
         var searchRequest = new SearchRequest(SearchEngine.DocumentsIndex)
         {
@@ -93,7 +93,7 @@ public class DocumentsService
         return documents;
     }
 
-    public async Task<Document?> GetDocumentAsync(string id)
+    public async Task<Document?> GetAsync(string id)
     {
         var getRequest = new GetRequest<Document>(SearchEngine.DocumentsIndex, id)
         {
@@ -117,7 +117,7 @@ public class DocumentsService
         );
     }
 
-    public async Task<Stream?> GetDocumentStreamAsync(Document document)
+    public async Task<Stream?> GetStreamAsync(Document document)
     {
         var response = await _s3Client.GetObjectAsync(
             S3Storage.DefaultBucket,
@@ -132,7 +132,7 @@ public class DocumentsService
         return response.ResponseStream;
     }
 
-    public async Task DeleteDocumentAsync(Document document)
+    public async Task DeleteAsync(Document document)
     {
         var deleteRequest = new DeleteRequest(SearchEngine.DocumentsIndex, document.Id);
 
@@ -143,7 +143,7 @@ public class DocumentsService
         return;
     }
 
-    public async Task<Stream> ZipDocumentsAsync()
+    public async Task<Stream> ZipAsync()
     {
         var searchRequest = new SearchRequest(SearchEngine.DocumentsIndex)
         {

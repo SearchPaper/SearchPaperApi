@@ -35,7 +35,7 @@ public class DocumentsController : ControllerBase
 
         var offset = page * size;
 
-        var documents = await _documentsService.SearchAsync(size, offset, term);
+        var documents = await _documentsService.ListAsync(size, offset, term);
 
         Response.Headers.Append("pages", pages.ToString());
 
@@ -45,7 +45,7 @@ public class DocumentsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> Get(string id)
     {
-        var document = await _documentsService.GetDocumentAsync(id);
+        var document = await _documentsService.GetAsync(id);
 
         if (document == null)
         {
@@ -60,7 +60,7 @@ public class DocumentsController : ControllerBase
 
         new FileExtensionContentTypeProvider().TryGetContentType(fileName, out contentType);
 
-        var stream = await _documentsService.GetDocumentStreamAsync(document);
+        var stream = await _documentsService.GetStreamAsync(document);
 
         if (stream == null)
         {
@@ -73,14 +73,14 @@ public class DocumentsController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(string id)
     {
-        var document = await _documentsService.GetDocumentAsync(id);
+        var document = await _documentsService.GetAsync(id);
 
         if (document == null)
         {
             return NotFound();
         }
 
-        await _documentsService.DeleteDocumentAsync(document);
+        await _documentsService.DeleteAsync(document);
 
         return NoContent();
     }
@@ -88,7 +88,7 @@ public class DocumentsController : ControllerBase
     [HttpGet("zip")]
     public async Task<IActionResult> Zip()
     {
-        var stream = await _documentsService.ZipDocumentsAsync();
+        var stream = await _documentsService.ZipAsync();
         return File(stream, "application/octet-stream", S3Storage.DefaultBucket);
     }
 }
