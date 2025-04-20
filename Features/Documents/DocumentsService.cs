@@ -62,7 +62,7 @@ public class DocumentsService
         var countResponse = await _openSearchClient.CountAsync(
             new CountRequest(SearchEngine.DocumentsIndex)
             {
-                Query = new WildcardQuery { Field = "untrustedFileName", Value = term },
+                Query = new WildcardQuery { Field = "untrustedFileName", Value = $"{term}*" },
             }
         );
 
@@ -76,7 +76,7 @@ public class DocumentsService
             Source = new SourceFilter { Excludes = new Field[] { new Field("attachment") } },
             Size = size,
             From = offset,
-            Query = new WildcardQuery { Field = "untrustedFileName", Value = term },
+            Query = new WildcardQuery { Field = "untrustedFileName", Value = $"{term}*" },
         };
 
         var searchResponse = await _openSearchClient.SearchAsync<Document>(searchRequest);
