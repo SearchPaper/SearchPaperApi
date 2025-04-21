@@ -1,5 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using OpenSearch.Client;
+using SearchPaperApi.Features.Folders;
 
 namespace SearchPaperApi.Features.Documents;
 
@@ -9,7 +11,8 @@ public record Document(
     string UntrustedFileName,
     Attachment? Attachment,
     string? ContentBase64,
-    DateTime UploadDateTime
+    DateTime UploadDateTime,
+    string FolderId
 );
 
 public class Attachment

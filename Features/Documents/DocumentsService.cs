@@ -38,7 +38,49 @@ public class DocumentsService
                 file.FileName,
                 null,
                 contentBase64,
-                DateTime.Now
+                DateTime.Now,
+                S3Storage.DefaultBucket
+            );
+
+            var putObjectRequest = new PutObjectRequest
+            {
+                BucketName = S3Storage.DefaultBucket,
+                Key = safeDocumentName,
+                InputStream = stream,
+            };
+            var indexRequest = new IndexRequest<Document>(document, SearchEngine.DocumentsIndex)
+            {
+                Pipeline = "AttachmentPipeline",
+            };
+
+            await _s3Client.PutObjectAsync(putObjectRequest);
+            await _openSearchClient.IndexAsync(indexRequest);
+        }
+    }
+
+    public async Task PutAndIndexAsync(List<IFormFile> files, string folderId)
+    {
+        for (int i = 0; i < files.Count(); i++)
+        {
+            var file = files[i];
+            var safeDocumentName = Path.GetRandomFileName();
+
+            byte[] bytes;
+            using var stream = file.OpenReadStream();
+            using var binaryReader = new BinaryReader(stream);
+
+            bytes = binaryReader.ReadBytes((int)stream.Length);
+
+            var contentBase64 = Convert.ToBase64String(bytes);
+
+            var document = new Document(
+                null,
+                safeDocumentName,
+                file.FileName,
+                null,
+                contentBase64,
+                DateTime.Now,
+                folderId
             );
 
             var putObjectRequest = new PutObjectRequest
@@ -69,6 +111,25 @@ public class DocumentsService
         return countResponse.Count;
     }
 
+    public async Task<long> CountAsync(string term, string folderId)
+    {
+        var countResponse = await _openSearchClient.CountAsync(
+            new CountRequest(SearchEngine.DocumentsIndex)
+            {
+                Query = new BoolQuery
+                {
+                    Must = new List<QueryContainer>
+                    {
+                        new WildcardQuery { Field = "untrustedFileName", Value = $"{term}*" },
+                        new TermQuery { Field = "folderId", Value = folderId },
+                    },
+                },
+            }
+        );
+
+        return countResponse.Count;
+    }
+
     public async Task<IEnumerable<Document>> ListAsync(int size, int offset, string term)
     {
         var searchRequest = new SearchRequest(SearchEngine.DocumentsIndex)
@@ -87,7 +148,45 @@ public class DocumentsService
             d.Source.UntrustedFileName,
             null,
             null,
-            d.Source.UploadDateTime
+            d.Source.UploadDateTime,
+            d.Source.FolderId
+        ));
+
+        return documents;
+    }
+
+    public async Task<IEnumerable<Document>> ListAsync(
+        int size,
+        int offset,
+        string term,
+        string folderId
+    )
+    {
+        var searchRequest = new SearchRequest(SearchEngine.DocumentsIndex)
+        {
+            Source = new SourceFilter { Excludes = new Field[] { new Field("attachment") } },
+            Size = size,
+            From = offset,
+            Query = new BoolQuery
+            {
+                Must = new List<QueryContainer>
+                {
+                    new WildcardQuery { Field = "untrustedFileName", Value = $"{term}*" },
+                    new TermQuery { Field = "folderId", Value = folderId },
+                },
+            },
+        };
+
+        var searchResponse = await _openSearchClient.SearchAsync<Document>(searchRequest);
+
+        var documents = searchResponse.Hits.Select(d => new Document(
+            d.Id,
+            d.Source.TrustedFileName,
+            d.Source.UntrustedFileName,
+            null,
+            null,
+            d.Source.UploadDateTime,
+            d.Source.FolderId
         ));
 
         return documents;
@@ -113,7 +212,8 @@ public class DocumentsService
             response.Source.UntrustedFileName,
             null,
             null,
-            response.Source.UploadDateTime
+            response.Source.UploadDateTime,
+            response.Source.FolderId
         );
     }
 
@@ -155,6 +255,53 @@ public class DocumentsService
                     new Field("untrustedFileName"),
                 },
             },
+        };
+
+        var searchResponse = await _openSearchClient.SearchAsync<Document>(searchRequest);
+
+        var documents = searchResponse.Documents;
+
+        MemoryStream memoryStream = new MemoryStream();
+        using (ZipArchive zipArchive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
+        {
+            foreach (Document document in documents)
+            {
+                var response = await _s3Client.GetObjectAsync(
+                    S3Storage.DefaultBucket,
+                    document.TrustedFileName
+                );
+
+                if (response.HttpStatusCode != System.Net.HttpStatusCode.OK)
+                {
+                    continue;
+                }
+
+                var zipArchiveEntry = zipArchive.CreateEntry(document.UntrustedFileName);
+                using var zipArchiveEntryStream = zipArchiveEntry.Open();
+                using var objectStream = response.ResponseStream;
+                await objectStream.CopyToAsync(zipArchiveEntryStream);
+            }
+        }
+
+        memoryStream.Seek(0, SeekOrigin.Begin);
+
+        return memoryStream;
+    }
+
+    public async Task<Stream> ZipAsync(string folderId)
+    {
+        var searchRequest = new SearchRequest(SearchEngine.DocumentsIndex)
+        {
+            Source = new SourceFilter
+            {
+                Includes = new Field[]
+                {
+                    new Field("trustedFileName"),
+                    new Field("untrustedFileName"),
+                },
+            },
+
+            Query = new TermQuery { Field = "folderId", Value = folderId },
         };
 
         var searchResponse = await _openSearchClient.SearchAsync<Document>(searchRequest);
