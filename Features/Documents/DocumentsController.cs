@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Web;
 using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.AspNetCore.Mvc;
@@ -117,7 +118,10 @@ public class DocumentsController : ControllerBase
 
         var fileName = document.UntrustedFileName;
 
-        HttpContext.Response.Headers.Append("Content-Disposition", $"inline; filename={fileName}");
+        HttpContext.Response.Headers.Append(
+            "Content-Disposition",
+            $"inline; filename={HttpUtility.UrlEncode(fileName)}"
+        );
 
         var contentType = "application/octet-stream";
 
