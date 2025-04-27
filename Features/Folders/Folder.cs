@@ -5,8 +5,8 @@ namespace SearchPaperApi.Features.Folders;
 
 public record Folder(
     [property: JsonPropertyName("_id")] string? Id,
-    string Name,
-    string Description,
-    string Bucket,
-    DateTime CreatedAt
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("description")] string Description,
+    [property: JsonPropertyName("bucket")] string? Bucket,
+    [property: JsonPropertyName("createdAt")] DateTime CreatedAt
 );

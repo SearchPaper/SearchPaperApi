@@ -3,6 +3,7 @@ using Amazon.S3;
 using Amazon.S3.Model;
 using Amazon.S3.Util;
 using OpenSearch.Client;
+using OpenSearch.Net;
 using SearchPaperApi.Infrastructure;
 
 namespace SearchPaperApi.Features.Folders;
@@ -20,14 +21,17 @@ public class FoldersService
 
     public async Task PutAndIndexAsync(Folder folder)
     {
-        var bucketName = HttpUtility.UrlEncode(folder.Name);
+        var bucketName = Guid.NewGuid().ToString();
 
         await _s3Client.PutBucketAsync(bucketName);
 
         var indexRequest = new IndexRequest<Folder>(
             new Folder(null, folder.Name, folder.Description, bucketName, DateTime.Now),
             SearchEngine.FoldersIndex
-        );
+        )
+        {
+            Refresh = Refresh.True,
+        };
 
         await _openSearchClient.IndexAsync(indexRequest);
 
@@ -38,7 +42,7 @@ public class FoldersService
     {
         var countRequest = new CountRequest(SearchEngine.FoldersIndex)
         {
-            Query = new WildcardQuery { Field = "name", Value = term },
+            Query = new WildcardQuery { Field = "name", Value = $"{term}*" },
         };
 
         var countResponse = await _openSearchClient.CountAsync(countRequest);
@@ -74,7 +78,17 @@ public class FoldersService
 
             From = offset,
 
-            Query = new WildcardQuery { Field = "name", Value = term },
+            Query = new WildcardQuery
+            {
+                Field = "name",
+                Value = $"{term}*",
+                CaseInsensitive = true,
+            },
+
+            Sort = new List<ISort>
+            {
+                new FieldSort { Field = "createdAt", Order = SortOrder.Ascending },
+            },
         };
 
         var searchResponse = await _openSearchClient.SearchAsync<Folder>(searchRequest);
@@ -122,14 +136,20 @@ public class FoldersService
         var indexRequest = new IndexRequest<Folder>(
             new Folder(folder.Id, folder.Name, folder.Description, folder.Bucket, folder.CreatedAt),
             SearchEngine.FoldersIndex
-        );
+        )
+        {
+            Refresh = Refresh.True,
+        };
 
         await _openSearchClient.IndexAsync(indexRequest);
     }
 
     public async Task DeleteAsync(Folder folder)
     {
-        var deleteRequest = new DeleteRequest(SearchEngine.FoldersIndex, folder.Id);
+        var deleteRequest = new DeleteRequest(SearchEngine.FoldersIndex, folder.Id)
+        {
+            Refresh = Refresh.True,
+        };
 
         await _openSearchClient.DeleteAsync(deleteRequest);
         await AmazonS3Util.DeleteS3BucketWithObjectsAsync(_s3Client, folder.Bucket);

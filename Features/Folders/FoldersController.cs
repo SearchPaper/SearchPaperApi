@@ -43,7 +43,7 @@ public class FoldersController : ControllerBase
 
         var offset = page * size;
 
-        var folders = await _foldersService.ListAsync(size, page, term);
+        var folders = await _foldersService.ListAsync(size, offset, term);
 
         Response.Headers.Append("pages", pages.ToString());
 
@@ -60,7 +60,15 @@ public class FoldersController : ControllerBase
             return NotFound();
         }
 
-        await _foldersService.UpdateAsync(folder);
+        await _foldersService.UpdateAsync(
+            new Folder(
+                formerFolder.Id,
+                folder.Name,
+                folder.Description,
+                formerFolder.Bucket,
+                formerFolder.CreatedAt
+            )
+        );
 
         return NoContent();
     }
