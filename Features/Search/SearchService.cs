@@ -56,7 +56,7 @@ public class SearchService
         var searchResponse = await _openSearchClient.SearchAsync<Document>(searchRequest);
         var searchResults = searchResponse.Hits.Select(h => new SearchResult(
             h.Id,
-            h.Source.UntrustedFileName,
+            Path.GetFileNameWithoutExtension(h.Source.UntrustedFileName),
             h.Source.UploadDateTime,
             h.Highlight["attachment.content"]
         ));
