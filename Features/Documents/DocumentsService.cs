@@ -1,7 +1,7 @@
-using System.IO.Compression;
 using Amazon.S3;
 using Amazon.S3.Model;
 using OpenSearch.Client;
+using OpenSearch.Net;
 using SearchPaperApi.Infrastructure;
 
 namespace SearchPaperApi.Features.Documents;
@@ -17,86 +17,80 @@ public class DocumentsService
         this._s3Client = s3Client;
     }
 
-    public async Task PutAndIndexAsync(List<IFormFile> files)
+    public async Task PutAndIndexAsync(IFormFile file)
     {
-        for (int i = 0; i < files.Count(); i++)
+        var safeDocumentName = Path.GetRandomFileName();
+
+        byte[] bytes;
+        using var stream = file.OpenReadStream();
+        using var binaryReader = new BinaryReader(stream);
+
+        bytes = binaryReader.ReadBytes((int)stream.Length);
+
+        var contentBase64 = Convert.ToBase64String(bytes);
+
+        var document = new Document(
+            null,
+            safeDocumentName,
+            file.FileName,
+            null,
+            contentBase64,
+            DateTime.Now,
+            S3Storage.DefaultBucket
+        );
+
+        var putObjectRequest = new PutObjectRequest
         {
-            var file = files[i];
-            var safeDocumentName = Path.GetRandomFileName();
+            BucketName = S3Storage.DefaultBucket,
+            Key = safeDocumentName,
+            InputStream = stream,
+        };
+        var indexRequest = new IndexRequest<Document>(document, SearchEngine.DocumentsIndex)
+        {
+            Pipeline = "AttachmentPipeline",
+            Refresh = Refresh.True,
+        };
 
-            byte[] bytes;
-            using var stream = file.OpenReadStream();
-            using var binaryReader = new BinaryReader(stream);
-
-            bytes = binaryReader.ReadBytes((int)stream.Length);
-
-            var contentBase64 = Convert.ToBase64String(bytes);
-
-            var document = new Document(
-                null,
-                safeDocumentName,
-                file.FileName,
-                null,
-                contentBase64,
-                DateTime.Now,
-                S3Storage.DefaultBucket
-            );
-
-            var putObjectRequest = new PutObjectRequest
-            {
-                BucketName = S3Storage.DefaultBucket,
-                Key = safeDocumentName,
-                InputStream = stream,
-            };
-            var indexRequest = new IndexRequest<Document>(document, SearchEngine.DocumentsIndex)
-            {
-                Pipeline = "AttachmentPipeline",
-            };
-
-            await _s3Client.PutObjectAsync(putObjectRequest);
-            await _openSearchClient.IndexAsync(indexRequest);
-        }
+        await _s3Client.PutObjectAsync(putObjectRequest);
+        await _openSearchClient.IndexAsync(indexRequest);
     }
 
-    public async Task PutAndIndexAsync(List<IFormFile> files, string folderId)
+    public async Task PutAndIndexAsync(IFormFile file, string folderId)
     {
-        for (int i = 0; i < files.Count(); i++)
+        var safeDocumentName = Path.GetRandomFileName();
+
+        byte[] bytes;
+        using var stream = file.OpenReadStream();
+        using var binaryReader = new BinaryReader(stream);
+
+        bytes = binaryReader.ReadBytes((int)stream.Length);
+
+        var contentBase64 = Convert.ToBase64String(bytes);
+
+        var document = new Document(
+            null,
+            safeDocumentName,
+            file.FileName,
+            null,
+            contentBase64,
+            DateTime.Now,
+            folderId
+        );
+
+        var putObjectRequest = new PutObjectRequest
         {
-            var file = files[i];
-            var safeDocumentName = Path.GetRandomFileName();
+            BucketName = S3Storage.DefaultBucket,
+            Key = safeDocumentName,
+            InputStream = stream,
+        };
+        var indexRequest = new IndexRequest<Document>(document, SearchEngine.DocumentsIndex)
+        {
+            Pipeline = "AttachmentPipeline",
+            Refresh = Refresh.True,
+        };
 
-            byte[] bytes;
-            using var stream = file.OpenReadStream();
-            using var binaryReader = new BinaryReader(stream);
-
-            bytes = binaryReader.ReadBytes((int)stream.Length);
-
-            var contentBase64 = Convert.ToBase64String(bytes);
-
-            var document = new Document(
-                null,
-                safeDocumentName,
-                file.FileName,
-                null,
-                contentBase64,
-                DateTime.Now,
-                folderId
-            );
-
-            var putObjectRequest = new PutObjectRequest
-            {
-                BucketName = S3Storage.DefaultBucket,
-                Key = safeDocumentName,
-                InputStream = stream,
-            };
-            var indexRequest = new IndexRequest<Document>(document, SearchEngine.DocumentsIndex)
-            {
-                Pipeline = "AttachmentPipeline",
-            };
-
-            await _s3Client.PutObjectAsync(putObjectRequest);
-            await _openSearchClient.IndexAsync(indexRequest);
-        }
+        await _s3Client.PutObjectAsync(putObjectRequest);
+        await _openSearchClient.IndexAsync(indexRequest);
     }
 
     public async Task<long> CountAsync(string term)
@@ -104,7 +98,24 @@ public class DocumentsService
         var countResponse = await _openSearchClient.CountAsync(
             new CountRequest(SearchEngine.DocumentsIndex)
             {
-                Query = new WildcardQuery { Field = "untrustedFileName", Value = $"{term}*" },
+                Query = new BoolQuery
+                {
+                    Should = new List<QueryContainer>
+                    {
+                        new WildcardQuery
+                        {
+                            Field = "untrustedFileName",
+                            Value = $"{term}*",
+                            CaseInsensitive = true,
+                        },
+                        new MatchQuery
+                        {
+                            Field = "untrustedFileName",
+                            Query = term,
+                            MinimumShouldMatch = 1,
+                        },
+                    },
+                },
             }
         );
 
@@ -120,8 +131,22 @@ public class DocumentsService
                 {
                     Must = new List<QueryContainer>
                     {
-                        new WildcardQuery { Field = "untrustedFileName", Value = $"{term}*" },
                         new TermQuery { Field = "folderId", Value = folderId },
+                    },
+                    Should = new List<QueryContainer>
+                    {
+                        new WildcardQuery
+                        {
+                            Field = "untrustedFileName",
+                            Value = $"{term}*",
+                            CaseInsensitive = true,
+                        },
+                        new MatchQuery
+                        {
+                            Field = "untrustedFileName",
+                            Query = term,
+                            MinimumShouldMatch = 1,
+                        },
                     },
                 },
             }
@@ -137,7 +162,28 @@ public class DocumentsService
             Source = new SourceFilter { Excludes = new Field[] { new Field("attachment") } },
             Size = size,
             From = offset,
-            Query = new WildcardQuery { Field = "untrustedFileName", Value = $"{term}*" },
+            Query = new BoolQuery
+            {
+                Should = new List<QueryContainer>
+                {
+                    new WildcardQuery
+                    {
+                        Field = "untrustedFileName",
+                        Value = $"{term}*",
+                        CaseInsensitive = true,
+                    },
+                    new MatchQuery
+                    {
+                        Field = "untrustedFileName",
+                        Query = term,
+                        MinimumShouldMatch = 1,
+                    },
+                },
+            },
+            Sort = new List<ISort>
+            {
+                new FieldSort { Field = "uploadDateTime", Order = SortOrder.Ascending },
+            },
         };
 
         var searchResponse = await _openSearchClient.SearchAsync<Document>(searchRequest);
@@ -171,9 +217,28 @@ public class DocumentsService
             {
                 Must = new List<QueryContainer>
                 {
-                    new WildcardQuery { Field = "untrustedFileName", Value = $"{term}*" },
                     new TermQuery { Field = "folderId", Value = folderId },
                 },
+                Should = new List<QueryContainer>
+                {
+                    new WildcardQuery
+                    {
+                        Field = "untrustedFileName",
+                        Value = $"{term}*",
+                        CaseInsensitive = true,
+                    },
+                    new MatchQuery
+                    {
+                        Field = "untrustedFileName",
+                        Query = term,
+                        MinimumShouldMatch = 1,
+                    },
+                },
+            },
+
+            Sort = new List<ISort>
+            {
+                new FieldSort { Field = "uploadDateTime", Order = SortOrder.Ascending },
             },
         };
 
@@ -234,104 +299,15 @@ public class DocumentsService
 
     public async Task DeleteAsync(Document document)
     {
-        var deleteRequest = new DeleteRequest(SearchEngine.DocumentsIndex, document.Id);
+        var deleteRequest = new DeleteRequest(SearchEngine.DocumentsIndex, document.Id)
+        {
+            Refresh = Refresh.True,
+        };
 
         await _openSearchClient.DeleteAsync(deleteRequest);
 
         await _s3Client.DeleteObjectAsync(S3Storage.DefaultBucket, document.TrustedFileName);
 
         return;
-    }
-
-    public async Task<Stream> ZipAsync()
-    {
-        var searchRequest = new SearchRequest(SearchEngine.DocumentsIndex)
-        {
-            Source = new SourceFilter
-            {
-                Includes = new Field[]
-                {
-                    new Field("trustedFileName"),
-                    new Field("untrustedFileName"),
-                },
-            },
-        };
-
-        var searchResponse = await _openSearchClient.SearchAsync<Document>(searchRequest);
-
-        var documents = searchResponse.Documents;
-
-        MemoryStream memoryStream = new MemoryStream();
-        using (ZipArchive zipArchive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
-        {
-            foreach (Document document in documents)
-            {
-                var response = await _s3Client.GetObjectAsync(
-                    S3Storage.DefaultBucket,
-                    document.TrustedFileName
-                );
-
-                if (response.HttpStatusCode != System.Net.HttpStatusCode.OK)
-                {
-                    continue;
-                }
-
-                var zipArchiveEntry = zipArchive.CreateEntry(document.UntrustedFileName);
-                using var zipArchiveEntryStream = zipArchiveEntry.Open();
-                using var objectStream = response.ResponseStream;
-                await objectStream.CopyToAsync(zipArchiveEntryStream);
-            }
-        }
-
-        memoryStream.Seek(0, SeekOrigin.Begin);
-
-        return memoryStream;
-    }
-
-    public async Task<Stream> ZipAsync(string folderId)
-    {
-        var searchRequest = new SearchRequest(SearchEngine.DocumentsIndex)
-        {
-            Source = new SourceFilter
-            {
-                Includes = new Field[]
-                {
-                    new Field("trustedFileName"),
-                    new Field("untrustedFileName"),
-                },
-            },
-
-            Query = new TermQuery { Field = "folderId", Value = folderId },
-        };
-
-        var searchResponse = await _openSearchClient.SearchAsync<Document>(searchRequest);
-
-        var documents = searchResponse.Documents;
-
-        MemoryStream memoryStream = new MemoryStream();
-        using (ZipArchive zipArchive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
-        {
-            foreach (Document document in documents)
-            {
-                var response = await _s3Client.GetObjectAsync(
-                    S3Storage.DefaultBucket,
-                    document.TrustedFileName
-                );
-
-                if (response.HttpStatusCode != System.Net.HttpStatusCode.OK)
-                {
-                    continue;
-                }
-
-                var zipArchiveEntry = zipArchive.CreateEntry(document.UntrustedFileName);
-                using var zipArchiveEntryStream = zipArchiveEntry.Open();
-                using var objectStream = response.ResponseStream;
-                await objectStream.CopyToAsync(zipArchiveEntryStream);
-            }
-        }
-
-        memoryStream.Seek(0, SeekOrigin.Begin);
-
-        return memoryStream;
     }
 };

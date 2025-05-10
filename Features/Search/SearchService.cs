@@ -49,6 +49,7 @@ public class SearchService
                 },
                 Encoder = HighlighterEncoder.Html,
                 HighlightQuery = new MatchQuery { Field = "attachment.content", Query = query },
+                FragmentSize = 300,
             },
             Query = new MatchQuery { Field = "attachment.content", Query = query },
         };

@@ -24,16 +24,16 @@ public class DocumentsController : ControllerBase
     }
 
     [HttpPost("")]
-    public async Task<IActionResult> Post(List<IFormFile> files)
+    public async Task<IActionResult> Post(IFormFile file)
     {
-        await _documentsService.PutAndIndexAsync(files);
+        await _documentsService.PutAndIndexAsync(file);
         return Created();
     }
 
     [HttpPost("{folderId}")]
-    public async Task<IActionResult> Post(List<IFormFile> files, string folderId)
+    public async Task<IActionResult> Post(IFormFile file, string folderId)
     {
-        await _documentsService.PutAndIndexAsync(files, folderId);
+        await _documentsService.PutAndIndexAsync(file, folderId);
         return Created();
     }
 
@@ -59,7 +59,7 @@ public class DocumentsController : ControllerBase
 
             return new
             {
-                Id = d.Id,
+                _id = d.Id,
                 FileName = d.UntrustedFileName,
                 UploadDateTime = d.UploadDateTime,
                 Folder = folder,
@@ -96,8 +96,8 @@ public class DocumentsController : ControllerBase
 
             return new
             {
-                Id = d.Id,
-                FileName = d.TrustedFileName,
+                _id = d.Id,
+                FileName = d.UntrustedFileName,
                 UploadDateTime = d.UploadDateTime,
                 Folder = folder,
             };
@@ -152,17 +152,4 @@ public class DocumentsController : ControllerBase
         return NoContent();
     }
 
-    [HttpGet("zip")]
-    public async Task<IActionResult> Zip()
-    {
-        var stream = await _documentsService.ZipAsync();
-        return File(stream, "application/zip", $"{Path.GetRandomFileName()}.zip");
-    }
-
-    [HttpGet("zip/{folderId}")]
-    public async Task<IActionResult> Zip(string folderId)
-    {
-        var stream = await _documentsService.ZipAsync(folderId);
-        return File(stream, "application/zip", $"{Path.GetRandomFileName()}.zip");
-    }
 }

@@ -39,15 +39,23 @@ public class FoldersController : ControllerBase
     {
         var count = await _foldersService.CountAsync(term);
 
-        var pages = Math.Ceiling((double)count / size);
+        double pages = Math.Ceiling((double)count / size);
 
         var offset = page * size;
 
         var folders = await _foldersService.ListAsync(size, offset, term);
 
-        Response.Headers.Append("pages", pages.ToString());
+        Response.Headers.Append("pages", pages.ToString() ?? "0");
 
         return Ok(folders);
+    }
+
+    [HttpGet("count")]
+    public async Task<IActionResult> Count(string term = "")
+    {
+        var count = await _foldersService.CountAsync(term);
+
+        return Ok(count);
     }
 
     [HttpPut("{id}")]
@@ -86,5 +94,19 @@ public class FoldersController : ControllerBase
         await _foldersService.DeleteAsync(folder);
 
         return NoContent();
+    }
+
+    [HttpGet("zip")]
+    public async Task<IActionResult> Zip()
+    {
+        var stream = await _foldersService.ZipAsync();
+        return File(stream, "application/zip", $"{Path.GetRandomFileName()}.zip");
+    }
+
+    [HttpGet("zip/{folderId}")]
+    public async Task<IActionResult> Zip(string folderId)
+    {
+        var stream = await _foldersService.ZipAsync(folderId);
+        return File(stream, "application/zip", $"{Path.GetRandomFileName()}.zip");
     }
 }

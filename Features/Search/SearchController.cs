@@ -15,15 +15,15 @@ public class SearchController : ControllerBase
     }
 
     [HttpGet("")]
-    public async Task<IActionResult> Search([FromQuery] string q, int size = 7, int page = 0)
+    public async Task<IActionResult> Search([FromQuery] string query, int size = 7, int page = 0)
     {
-        var count = await _searchService.CountAsync(q);
+        var count = await _searchService.CountAsync(query);
 
         var offSet = page * size;
 
         var pages = Math.Ceiling((double)count / size);
 
-        var searchResults = await _searchService.SearchAsync(size, offSet, q);
+        var searchResults = await _searchService.SearchAsync(size, offSet, query);
 
         Response.Headers.Append("pages", pages.ToString());
 
