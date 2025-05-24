@@ -1,4 +1,6 @@
+using System.Reflection;
 using Amazon.S3;
+using Microsoft.Extensions.FileProviders;
 using OpenSearch.Client;
 using SearchPaperApi.Extensions;
 using SearchPaperApi.Infrastructure;
@@ -48,6 +50,8 @@ public class Program
 
         builder.Services.AddFeatureServices();
 
+        var fileProvider = new ManifestEmbeddedFileProvider(Assembly.GetAssembly(type: typeof(Program))!,"wwwroot");
+
         var app = builder.Build();
 
         using (var scope = app.Services.CreateScope())
@@ -67,6 +71,12 @@ public class Program
         app.UseHttpsRedirection();
 
         app.UseAuthorization();
+
+        app.UseFileServer(new FileServerOptions
+        {
+            FileProvider = fileProvider,
+            RequestPath = string.Empty
+         });
 
         app.MapControllers();
 
